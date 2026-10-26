@@ -1,102 +1,90 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const TIME_SET = 20 * 60; // 20 minutes in seconds
 
-function repLength(reps: number) {
-  return Math.round(TIME_SET / reps);
-}
+type Status = "idle" | "running" | "paused";
+
+function formatTime(time: number) {
+  const tenths = Math.max(Math.ceil(time * 10 - 1e-6), 0);
+  const minutes = Math.floor(tenths / 600);
+  const seconds = Math.floor((tenths % 600) / 10);
+  const frac = tenths % 10;
+
+  if (minutes === 0) return `${seconds}.${frac}`;
+  
+  return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}.${frac}`;
+};
 
 export function Timers() {
-  const [started, setStarted] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [numTotalRepsInput, setNumTotalRepsInput] = useState("");
-  const [numReps, setNumReps] = useState(0);
+  const [status, setStatus] = useState<Status>("idle");
   const [numTotalReps, setNumTotalReps] = useState(0);
-  const [timeRep, setTimeRep] = useState(0);
-  const [timeSet, setTimeSet] = useState(TIME_SET);
+  const [timeElapsed, setTimeElapsed] = useState(0); // seconds passed
+  const [repsDone, setRepsDone] = useState(0); // reps effectively done
 
-  // Rep and Set intervals
+  // Elapsed time counted from Date.now()
   useEffect(() => {
-    if (!started || paused) return;
+    if (status !== "running") return;
+
+    let last = Date.now();
 
     const interval = setInterval(() => {
-      setTimeRep((prev) => prev - 1); 
-      setTimeSet((prev) => prev - 1);
-    }, 1000);
+      const now = Date.now();
+      const timePassed = (now - last) / 1000;
+      last = now;
+
+      setTimeElapsed((prev) => Math.min((prev + timePassed), TIME_SET));
+    }, 50);
     
     return () => clearInterval(interval);
-  }, [started, paused]);
+  }, [status]);
 
-  // Rep completion
-  useLayoutEffect(() => {
-    if (!started || timeRep > 0) return;
-
-    const next = numReps + 1;
-    setNumReps(next);
-
-    if (next >= numTotalReps) {
-      setStarted(false); // last rep done
-      return;
-    }
-
-    // Use remaining time to calculate next rep time
-    setTimeRep(Math.round(timeSet / (numTotalReps - next)));
-  }, [started, timeRep, numReps, numTotalReps, timeSet]);
-
-  // Set completion
+  // Finish when the set is over
   useEffect(() => {
-    if (started && timeSet <= 0) setStarted(false);
-  }, [started, timeSet]);
+    if (status === "running" && timeElapsed >= TIME_SET) setStatus("idle");
+  }, [status, timeElapsed]);
+
+  const n = numTotalReps;
+  const numReps = n > 0 ? Math.min(Math.floor((timeElapsed * n) / TIME_SET), n) : 0; // n > 0 check is to avoid NaN values displayed
+  const repEnd = n > 0 ? (Math.min(numReps + 1, n) * TIME_SET) / n : 0;
+  const timeRep = Math.max(repEnd - timeElapsed, 0);
+  const timeSet = Math.max(TIME_SET - timeElapsed, 0);
 
   function handleNumTotalRepsChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
-    setNumTotalRepsInput(raw);
-
-    const value = raw === "" ? 0 : Math.floor(Number(raw));
-    const clamped = Math.min(Math.max(value, 1), TIME_SET);
+    const value = Math.max(Math.floor(Number(raw)) || 0, 0);
+    const clamped = Math.min(value, TIME_SET);
+    
     setNumTotalReps(clamped);
-
-    setNumReps(0);
-    setTimeSet(TIME_SET);
-    setTimeRep(repLength(clamped));
-  }
-  
-  function handleTimeFormat(time: number) {
-    const t = Math.max(time, 0);
-    const minutes = Math.floor(t / 60);
-    const seconds = t % 60;
-    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+    setTimeElapsed(0);
+    setRepsDone(0);
   };
 
   function handleStart() {
     if (numTotalReps < 1) return;
-    setStarted(true);
-    setPaused(false);
 
-    setNumReps(0);
-    setTimeSet(TIME_SET);
-    setTimeRep(repLength(numTotalReps));
+    setTimeElapsed(0);
+    setStatus("running");
+    setRepsDone(0);
   };
 
   function handlePause() {
-    setPaused(true);
+    setStatus("paused");
   };
 
   function handleResume() {
-    setPaused(false);
+    setStatus("running");
   }
 
   function handleReset() {
-    setStarted(false);
-    setNumReps(0);
-    setTimeRep(0);
-    setTimeSet(TIME_SET);
+    setStatus("idle");
+    setTimeElapsed(0);
+    setRepsDone(0);
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center gap-6 bg-neutral-900 text-white p-6">
-      <h1 className="text-3xl font-bold">Workout Timer</h1>
-      {!started && (
+    <main className="min-h-screen bg-[#023047] text-paper flex flex-col items-center gap-6 p-10">
+      <h1 className="text-xl text-[#FFB703] font-bold">Workout Timer</h1>
+      {status === "idle" && (
         <form 
           className="flex gap-2 items-center" 
           onSubmit={(e) => {
@@ -113,49 +101,78 @@ export function Timers() {
             max={TIME_SET}
             step={1}
             autoComplete="off"
-            value={numTotalRepsInput}
+            value={numTotalReps || ""}
+            placeholder="100"
             onChange={handleNumTotalRepsChange}
           />
         </form>
       )}
+
       <div className="flex gap-4">
-        {!started && (
+        {status === "idle" && (
           <button 
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" 
+            className="bg-blue-500 enabled:hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-40 disabled:cursor-not-allowed" 
             onClick={handleStart} 
+            disabled={numTotalReps < 1}
           >
             Start
           </button>
         )}
-        {started && (
-          <>
-            {!paused ? 
-              <button
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-                onClick={handlePause}
-              >
-                Pause
-              </button> 
-            :
-              <button
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                onClick={handleResume}
-              >
-                Resume
-              </button>
-            }
-            <button
-              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-              onClick={handleReset}
-            >
-              Reset
-            </button>
-          </>
+        {status === "running" && (
+          <button
+            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handlePause}
+          >
+            Pause
+          </button> 
+        )}
+        {status === "paused" && (
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handleResume}
+          >
+            Resume
+          </button>
+        )}
+        {status !== "idle" && (
+          <button
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handleReset}
+          >
+            Reset
+          </button>
         )}
       </div>
-      <p className="text-xl font-extrabold tabular-nums">Reps: {numReps} / {numTotalReps}</p>
-      <p className="text-xl font-extrabold tabular-nums">Rep Time: {timeRep}</p>
-      <p className="text-xl font-extrabold tabular-nums">Set Time: {handleTimeFormat(timeSet)}</p>
+
+      {status !== "idle" && (
+        <>
+          <h2 className="text-3xl">Your Reps</h2>
+          <div className="flex gap-4 items-center">
+            <button
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
+            >
+              - 1
+            </button>
+            <h3 className="text-xl font-extrabold tabular-nums">{repsDone}</h3>
+            <button
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => setRepsDone(prev => prev + 1)}
+            >
+              + 1
+            </button>
+          </div>
+        </>
+      )}
+
+      {status !== "idle" && (
+        <>
+          <p className="text-xl font-extrabold tabular-nums">Reps: {numReps} / {numTotalReps}</p>
+          <p className="text-xl font-extrabold tabular-nums">Reps Done: {repsDone}</p>
+          <p className="text-xl font-extrabold tabular-nums">Rep Time: {formatTime(timeRep)}</p>
+          <p className="text-xl font-extrabold tabular-nums">Set Time: {formatTime(timeSet)}</p>
+        </>
+      )}
     </main>
   );
 };
