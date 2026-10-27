@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const TIME_SET = 20 * 60; // 20 minutes in seconds
+const TIME_SET = 10 * 20; // 20 minutes in seconds
 
 type Status = "idle" | "running" | "paused";
 
@@ -82,8 +82,8 @@ export function Timers() {
   };
 
   return (
-    <main className="min-h-screen bg-[#023047] text-paper flex flex-col items-center gap-6 p-10">
-      <h1 className="text-xl text-[#FFB703] font-bold">Workout Timer</h1>
+    <main className="min-h-screen bg-(color:--background) flex flex-col items-center gap-12 p-10">
+      <h1 className="text-2xl text-(color:--muted) font-semibold">Workout Timer</h1>
       {status === "idle" && (
         <form 
           className="flex gap-2 items-center" 
@@ -94,7 +94,7 @@ export function Timers() {
         >
           <label htmlFor="numTotalReps">Rep Amount: </label>
           <input
-            className="bg-neutral-800 text-white border border-neutral-700 rounded px-2 py-1 w-20"
+            className="bg-(color:--surface) text-(color:--text) placeholder:text-(color:--muted) rounded-full outline-none focus-visible:ring-2 focus-visible:ring-(color:--accent) px-3 py-1 w-21"
             id="numTotalReps"
             type="number"
             min={1}
@@ -108,10 +108,49 @@ export function Timers() {
         </form>
       )}
 
-      <div className="flex gap-4">
+        <section className="flex flex-col items-center gap-2 tabular-nums">
+          <p className="text-(color:--text) text-7xl font-extrabold">
+            {n > 0 ? formatTime(timeRep) : "---"}
+          </p>
+          <div className="flex gap-6 text-(color:--muted)">
+            <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
+            {n > 0 && <span>{formatTime(timeSet)} left</span>}
+          </div>
+          <div className="h-2 w-55 rounded-full bg-(color:--surface)">
+            <div
+              className="h-full rounded-full bg-(color:--muted)"
+              style={{ width: `${(timeElapsed / TIME_SET) * 100}%` }}
+            />
+          </div>
+        </section>
+
+        {status !== "idle" && (
+          <section>
+            <div className="flex flex-col justify-center items-center gap-2">
+              <h2 className="text-xl text-(color:--muted)">Your Reps</h2>
+              <div className="flex gap-4 items-center w-50 justify-between">
+                <button
+                  className="flex justify-center items-center bg-(color:--surface) hover:brightness-110 size-9 rounded-full"
+                  onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
+                >
+                  <span className="block h-1 w-4 rounded-full bg-current" />
+                </button>
+                <p className="text-(color:--text) text-5xl font-bold tabular-nums">{repsDone}</p>
+                <button
+                  className="flex justify-center items-center bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) size-9 rounded-full"
+                  onClick={() => setRepsDone(prev => prev + 1)}
+                >
+                  <span className="relative block h-1 w-4 rounded-full bg-current before:absolute before:left-1/2 before:top-1/2 before:h-4 before:w-1 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:bg-current" />
+                </button>
+              </div>
+            </div>
+          </section>
+      )}
+
+      <div className="flex flex-col items-center gap-5">
         {status === "idle" && (
           <button 
-            className="bg-blue-500 enabled:hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-40 disabled:cursor-not-allowed" 
+            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full enabled:hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed" 
             onClick={handleStart} 
             disabled={numTotalReps < 1}
           >
@@ -120,7 +159,7 @@ export function Timers() {
         )}
         {status === "running" && (
           <button
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full" 
             onClick={handlePause}
           >
             Pause
@@ -128,7 +167,7 @@ export function Timers() {
         )}
         {status === "paused" && (
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full" 
             onClick={handleResume}
           >
             Resume
@@ -136,43 +175,13 @@ export function Timers() {
         )}
         {status !== "idle" && (
           <button
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-(color:--surface) hover:brightness-110 text-(color:--muted) text-sm w-15 font-bold py-2 rounded-full"
             onClick={handleReset}
           >
             Reset
           </button>
         )}
-      </div>
-
-      {status !== "idle" && (
-        <>
-          <h2 className="text-3xl">Your Reps</h2>
-          <div className="flex gap-4 items-center">
-            <button
-              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-              onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
-            >
-              - 1
-            </button>
-            <h3 className="text-xl font-extrabold tabular-nums">{repsDone}</h3>
-            <button
-              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-              onClick={() => setRepsDone(prev => prev + 1)}
-            >
-              + 1
-            </button>
-          </div>
-        </>
-      )}
-
-      {status !== "idle" && (
-        <>
-          <p className="text-xl font-extrabold tabular-nums">Reps: {numReps} / {numTotalReps}</p>
-          <p className="text-xl font-extrabold tabular-nums">Reps Done: {repsDone}</p>
-          <p className="text-xl font-extrabold tabular-nums">Rep Time: {formatTime(timeRep)}</p>
-          <p className="text-xl font-extrabold tabular-nums">Set Time: {formatTime(timeSet)}</p>
-        </>
-      )}
+      </div>  
     </main>
   );
 };
