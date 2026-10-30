@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router"; // react-router-dom on v6
 
-const TIME_SET = 10 * 20; // 20 minutes in seconds
+const TIME_SET = 1 * 10; // 20 minutes in seconds
 
-type Status = "idle" | "running" | "paused";
+type Status = "idle" | "running" | "paused" | "done";
 
 function formatTime(time: number) {
   const tenths = Math.max(Math.ceil(time * 10 - 1e-6), 0);
@@ -15,11 +16,12 @@ function formatTime(time: number) {
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}.${frac}`;
 };
 
-export function Timers() {
+export default function Timers() {
   const [status, setStatus] = useState<Status>("idle");
   const [numTotalReps, setNumTotalReps] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0); // seconds passed
   const [repsDone, setRepsDone] = useState(0); // reps effectively done
+  const navigate = useNavigate(); // navigates to the done page
 
   // Elapsed time counted from Date.now()
   useEffect(() => {
@@ -40,7 +42,7 @@ export function Timers() {
 
   // Finish when the set is over
   useEffect(() => {
-    if (status === "running" && timeElapsed >= TIME_SET) setStatus("idle");
+    if (status === "running" && timeElapsed >= TIME_SET) setStatus("done");
   }, [status, timeElapsed]);
 
   const n = numTotalReps;
@@ -81,9 +83,30 @@ export function Timers() {
     setRepsDone(0);
   };
 
+  function handleSave() {
+    navigate("/done", { state: repsDone > 0 ? repsDone : numReps })
+  }
+
   return (
-    <main className="min-h-screen bg-(color:--background) flex flex-col items-center gap-12 p-10">
-      <h1 className="text-2xl text-(color:--muted) font-semibold">Workout Timer</h1>
+    <>
+      <section className="flex flex-col items-center gap-2 tabular-nums">
+        <p className="text-(color:--text) text-7xl font-extrabold">
+          {status === "done" ? "Done!" :
+            n > 0 ? formatTime(timeRep) : "---"
+          }
+        </p>
+        <div className="flex gap-6 text-(color:--muted)">
+          <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
+          {status !== "done" && n > 0 && <span>{formatTime(timeSet)} left</span>}
+        </div>
+        <div className="h-2 w-55 rounded-full bg-(color:--surface)">
+          <div
+            className="h-full rounded-full bg-(color:--muted)"
+            style={{ width: `${(timeElapsed / TIME_SET) * 100}%` }}
+          />
+        </div>
+      </section>
+      
       {status === "idle" && (
         <form 
           className="flex gap-2 items-center" 
@@ -108,46 +131,30 @@ export function Timers() {
         </form>
       )}
 
-        <section className="flex flex-col items-center gap-2 tabular-nums">
-          <p className="text-(color:--text) text-7xl font-extrabold">
-            {n > 0 ? formatTime(timeRep) : "---"}
-          </p>
-          <div className="flex gap-6 text-(color:--muted)">
-            <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
-            {n > 0 && <span>{formatTime(timeSet)} left</span>}
-          </div>
-          <div className="h-2 w-55 rounded-full bg-(color:--surface)">
-            <div
-              className="h-full rounded-full bg-(color:--muted)"
-              style={{ width: `${(timeElapsed / TIME_SET) * 100}%` }}
-            />
+      {status !== "idle" && (
+        <section>
+          <div className="flex flex-col justify-center items-center gap-2">
+            <h2 className="text-xl text-(color:--muted)">Your Reps</h2>
+            <div className="flex gap-4 items-center w-50 justify-between">
+              <button
+                className="flex justify-center items-center bg-(color:--surface) hover:brightness-110 size-9 rounded-full"
+                onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
+              >
+                <span className="block h-1 w-4 rounded-full bg-current" />
+              </button>
+              <p className="text-(color:--text) text-5xl font-bold tabular-nums">{repsDone}</p>
+              <button
+                className="flex justify-center items-center bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) size-9 rounded-full"
+                onClick={() => setRepsDone(prev => prev + 1)}
+              >
+                <span className="relative block h-1 w-4 rounded-full bg-current before:absolute before:left-1/2 before:top-1/2 before:h-4 before:w-1 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:bg-current" />
+              </button>
+            </div>
           </div>
         </section>
-
-        {status !== "idle" && (
-          <section>
-            <div className="flex flex-col justify-center items-center gap-2">
-              <h2 className="text-xl text-(color:--muted)">Your Reps</h2>
-              <div className="flex gap-4 items-center w-50 justify-between">
-                <button
-                  className="flex justify-center items-center bg-(color:--surface) hover:brightness-110 size-9 rounded-full"
-                  onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
-                >
-                  <span className="block h-1 w-4 rounded-full bg-current" />
-                </button>
-                <p className="text-(color:--text) text-5xl font-bold tabular-nums">{repsDone}</p>
-                <button
-                  className="flex justify-center items-center bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) size-9 rounded-full"
-                  onClick={() => setRepsDone(prev => prev + 1)}
-                >
-                  <span className="relative block h-1 w-4 rounded-full bg-current before:absolute before:left-1/2 before:top-1/2 before:h-4 before:w-1 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:bg-current" />
-                </button>
-              </div>
-            </div>
-          </section>
       )}
 
-      <div className="flex flex-col items-center gap-5">
+      <section className="flex flex-col items-center gap-5">
         {status === "idle" && (
           <button 
             className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full enabled:hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed" 
@@ -173,6 +180,14 @@ export function Timers() {
             Resume
           </button>
         )}
+        {status === "done" && (
+          <button
+              className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full"
+              onClick={handleSave}
+            >
+              Save
+            </button>
+        )}
         {status !== "idle" && (
           <button
             className="bg-(color:--surface) hover:brightness-110 text-(color:--muted) text-sm w-15 font-bold py-2 rounded-full"
@@ -181,7 +196,7 @@ export function Timers() {
             Reset
           </button>
         )}
-      </div>  
-    </main>
+      </section>
+    </>
   );
-};
+}

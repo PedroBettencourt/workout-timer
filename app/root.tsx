@@ -42,7 +42,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <main className="min-h-screen bg-(color:--background) flex flex-col items-center gap-12 p-10">
+      <h1 className="text-2xl text-(color:--muted) font-semibold">Workout Timer</h1>
+      <Outlet />
+    </main>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
