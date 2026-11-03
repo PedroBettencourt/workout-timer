@@ -20,3 +20,24 @@ body {
   background-color: var(--background);
   color: var(--text);
 }
+
+@layer components {
+  .btn {
+    @apply rounded-full font-bold enabled:hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-sm {
+    @apply h-10 px-4 text-sm;
+  }
+  .btn-lg {
+    @apply w-25 py-3 text-lg;
+  }
+  .btn-accent {
+    @apply bg-(color:--accent) text-(color:--on-accent);
+  }
+  .btn-muted {
+    @apply bg-(color:--surface) text-(color:--muted);
+  }
+  .field {
+    @apply h-10 w-full min-w-0 rounded-full bg-(color:--surface) px-3 text-(color:--text) outline-none placeholder:text-(color:--muted) focus-visible:ring-2 focus-visible:ring-(color:--accent);
+  }
+}

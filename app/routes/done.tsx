@@ -1,16 +1,6 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-
-const MAX_REPS = 20 * 60; // 1200 reps
-
-// Created once, formats in the user's own locale (e.g. "Fri, 30 Oct, 14:03")
-const dateFormat = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+import { MAX_REPS, formatDate } from "./utils";
 
 export default function Done() {
     const navigate = useNavigate();
@@ -22,7 +12,7 @@ export default function Done() {
     const [loadingSave, setLoadingSave] = useState(false); // For future backend
     const [errorSave, setErrorSave] = useState(false);
     
-    // Opened directly (no data from the timer): send them back
+    // Sends user back to main page if there are no reps
     if (!initialReps) return <Navigate to="/" replace />;
 
     function handleRepsChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -46,7 +36,7 @@ export default function Done() {
             return;
         }
 
-        navigate("/", { replace: true });
+        navigate("/history", { replace: true });
     }
 
     function handleRetry() {
@@ -67,7 +57,7 @@ export default function Done() {
             >
                 <label htmlFor="reps" className="text-(color:--muted)">Reps:</label>
                 <input
-                    className="bg-(color:--surface) text-(color:--text) text-2xl text-center font-bold placeholder:text-(color:--muted) rounded-full outline-none focus-visible:ring-2 focus-visible:ring-(color:--accent) px-3 py-1 w-30"
+                    className="field w-30 text-2xl text-center font-bold"
                     id="reps"
                     type="number"
                     min={1}
@@ -82,14 +72,14 @@ export default function Done() {
 
             <p className="text-(color:--muted) text-center">
                 Save <span className="font-bold text-(color:--text)">{reps}</span> 
-                {reps === 1 ? " rep" : " reps"} on {dateFormat.format(now)}?</p>
+                {reps === 1 ? " rep" : " reps"} on {formatDate(now)}?</p>
 
             <div className="flex flex-col items-center gap-5">
                 {!loadingSave && (
                     <button
-                    className="bg-(color:--accent) enabled:hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
-                    onClick={handleSave}
-                    disabled= {reps < 1}
+                        className="btn btn-lg btn-accent"
+                        onClick={handleSave}
+                        disabled= {reps < 1}
                     >
                         Save
                     </button>
@@ -98,7 +88,7 @@ export default function Done() {
                     <p>Saving...</p>
                 )}
                 <button
-                    className="bg-(color:--surface) hover:brightness-110 text-(color:--muted) text-sm w-15 font-bold py-2 rounded-full"
+                    className="btn btn-sm btn-muted"
                     onClick={handleRetry}
                     >
                     Retry

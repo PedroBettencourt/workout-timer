@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router"; // react-router-dom on v6
+import { TIME_SET } from "./utils";
 
-const TIME_SET = 1 * 10; // 20 minutes in seconds
-
-type Status = "idle" | "running" | "paused" | "done";
+type Status = "idle" | "running" | "paused";
 
 function formatTime(time: number) {
   const tenths = Math.max(Math.ceil(time * 10 - 1e-6), 0);
@@ -40,16 +39,17 @@ export default function Timers() {
     return () => clearInterval(interval);
   }, [status]);
 
-  // Finish when the set is over
-  useEffect(() => {
-    if (status === "running" && timeElapsed >= TIME_SET) setStatus("done");
-  }, [status, timeElapsed]);
-
   const n = numTotalReps;
   const numReps = n > 0 ? Math.min(Math.floor((timeElapsed * n) / TIME_SET), n) : 0; // n > 0 check is to avoid NaN values displayed
   const repEnd = n > 0 ? (Math.min(numReps + 1, n) * TIME_SET) / n : 0;
   const timeRep = Math.max(repEnd - timeElapsed, 0);
   const timeSet = Math.max(TIME_SET - timeElapsed, 0);
+
+  // Finish when the set is over
+  useEffect(() => {
+    if (status !== "running" || timeElapsed < TIME_SET) return;
+    navigate("/done", { replace: true, state: repsDone > 0 ? repsDone : numReps });
+  }, [status, timeElapsed, repsDone, numReps, navigate]);
 
   function handleNumTotalRepsChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
@@ -75,7 +75,7 @@ export default function Timers() {
 
   function handleResume() {
     setStatus("running");
-  }
+  };
 
   function handleReset() {
     setStatus("idle");
@@ -83,21 +83,15 @@ export default function Timers() {
     setRepsDone(0);
   };
 
-  function handleSave() {
-    navigate("/done", { state: repsDone > 0 ? repsDone : numReps })
-  }
-
   return (
     <>
       <section className="flex flex-col items-center gap-2 tabular-nums">
         <p className="text-(color:--text) text-7xl font-extrabold">
-          {status === "done" ? "Done!" :
-            n > 0 ? formatTime(timeRep) : "---"
-          }
+          { n > 0 ? formatTime(timeRep) : "---" }
         </p>
         <div className="flex gap-6 text-(color:--muted)">
           <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
-          {status !== "done" && n > 0 && <span>{formatTime(timeSet)} left</span>}
+          { n > 0 && <span>{formatTime(timeSet)} left</span> }
         </div>
         <div className="h-2 w-55 rounded-full bg-(color:--surface)">
           <div
@@ -117,7 +111,7 @@ export default function Timers() {
         >
           <label htmlFor="numTotalReps">Rep Amount: </label>
           <input
-            className="bg-(color:--surface) text-(color:--text) placeholder:text-(color:--muted) rounded-full outline-none focus-visible:ring-2 focus-visible:ring-(color:--accent) px-3 py-1 w-21"
+            className="field w-21"
             id="numTotalReps"
             type="number"
             min={1}
@@ -137,6 +131,7 @@ export default function Timers() {
             <h2 className="text-xl text-(color:--muted)">Your Reps</h2>
             <div className="flex gap-4 items-center w-50 justify-between">
               <button
+                aria-label="remove one rep"
                 className="flex justify-center items-center bg-(color:--surface) hover:brightness-110 size-9 rounded-full"
                 onClick={() => setRepsDone(prev => Math.max(prev - 1, 0))}
               >
@@ -144,6 +139,7 @@ export default function Timers() {
               </button>
               <p className="text-(color:--text) text-5xl font-bold tabular-nums">{repsDone}</p>
               <button
+                aria-label="add one rep"
                 className="flex justify-center items-center bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) size-9 rounded-full"
                 onClick={() => setRepsDone(prev => prev + 1)}
               >
@@ -157,7 +153,7 @@ export default function Timers() {
       <section className="flex flex-col items-center gap-5">
         {status === "idle" && (
           <button 
-            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full enabled:hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed" 
+            className="btn btn-lg btn-accent" 
             onClick={handleStart} 
             disabled={numTotalReps < 1}
           >
@@ -166,7 +162,7 @@ export default function Timers() {
         )}
         {status === "running" && (
           <button
-            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full" 
+            className="btn btn-lg btn-accent" 
             onClick={handlePause}
           >
             Pause
@@ -174,23 +170,15 @@ export default function Timers() {
         )}
         {status === "paused" && (
           <button
-            className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full" 
+            className="btn btn-lg btn-accent" 
             onClick={handleResume}
           >
             Resume
           </button>
         )}
-        {status === "done" && (
-          <button
-              className="bg-(color:--accent) hover:brightness-110 text-(color:--on-accent) text-lg w-25 py-3 font-bold rounded-full"
-              onClick={handleSave}
-            >
-              Save
-            </button>
-        )}
         {status !== "idle" && (
           <button
-            className="bg-(color:--surface) hover:brightness-110 text-(color:--muted) text-sm w-15 font-bold py-2 rounded-full"
+            className="btn btn-sm btn-muted"
             onClick={handleReset}
           >
             Reset
