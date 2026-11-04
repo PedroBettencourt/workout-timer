@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router"; // react-router-dom on v6
 import { TIME_SET } from "./utils";
 
-type Status = "idle" | "running" | "paused";
+const COUNTDOWN = 5; // 5 seconds
+
+type Status = "idle" | "countdown" | "running" | "paused";
 
 function formatTime(time: number) {
   const tenths = Math.max(Math.ceil(time * 10 - 1e-6), 0);
@@ -21,6 +23,28 @@ export default function Timers() {
   const [timeElapsed, setTimeElapsed] = useState(0); // seconds passed
   const [repsDone, setRepsDone] = useState(0); // reps effectively done
   const navigate = useNavigate(); // navigates to the done page
+  const [countdown, setCountdown] = useState(COUNTDOWN);
+
+  // Starting countdown (5 seconds)
+  useEffect(() => {
+    if (status !== "countdown") return;
+
+    const end = Date.now() + COUNTDOWN * 1000;
+
+    const interval = setInterval(() => {
+      const left = (end - Date.now()) / 1000;
+      
+      if (left <= 0) {
+        setStatus("running");
+        clearInterval(interval);
+        return;
+      };
+
+      setCountdown(left);
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [status]);
 
   // Elapsed time counted from Date.now()
   useEffect(() => {
@@ -65,8 +89,9 @@ export default function Timers() {
     if (numTotalReps < 1) return;
 
     setTimeElapsed(0);
-    setStatus("running");
     setRepsDone(0);
+    setCountdown(COUNTDOWN);
+    setStatus("countdown");
   };
 
   function handlePause() {
@@ -87,18 +112,24 @@ export default function Timers() {
     <>
       <section className="flex flex-col items-center gap-2 tabular-nums">
         <p className="text-(color:--text) text-7xl font-extrabold">
-          { n > 0 ? formatTime(timeRep) : "---" }
+          { status === "countdown" 
+            ? Math.ceil(countdown) 
+            : n > 0 ? formatTime(timeRep) : "---" }
         </p>
-        <div className="flex gap-6 text-(color:--muted)">
-          <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
-          { n > 0 && <span>{formatTime(timeSet)} left</span> }
-        </div>
-        <div className="h-2 w-55 rounded-full bg-(color:--surface)">
-          <div
-            className="h-full rounded-full bg-(color:--muted)"
-            style={{ width: `${(timeElapsed / TIME_SET) * 100}%` }}
-          />
-        </div>
+        {status !== "countdown" && (
+          <>
+            <div className="flex gap-6 text-(color:--muted)">
+              <span>{n > 0 ? `Rep ${Math.min(numReps + 1, n)} of ${n}` : "Pick a rep amount"}</span>
+              { n > 0 && <span>{formatTime(timeSet)} left</span> }
+            </div>
+            <div className="h-2 w-55 rounded-full bg-(color:--surface)">
+              <div
+                className="h-full rounded-full bg-(color:--muted)"
+                style={{ width: `${(timeElapsed / TIME_SET) * 100}%` }}
+              />
+            </div>
+          </>
+      )}
       </section>
       
       {status === "idle" && (
@@ -125,7 +156,7 @@ export default function Timers() {
         </form>
       )}
 
-      {status !== "idle" && (
+      {(status === "running" || status === "paused") && (
         <section>
           <div className="flex flex-col justify-center items-center gap-2">
             <h2 className="text-xl text-(color:--muted)">Your Reps</h2>
