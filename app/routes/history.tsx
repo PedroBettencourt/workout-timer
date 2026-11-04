@@ -1,11 +1,24 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { MAX_REPS, dateFromISO, dateToISO, formatDate } from "./utils";
+import {
+  CartesianGrid,
+  Label,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface WorkoutSetProps {
     id: string;
     date: string;
     reps: number;
 }
+
+// For the chart
+const shortDate = new Intl.DateTimeFormat("en-gb", { day: "2-digit", month: "2-digit" });
 
 export default function History() {
     const [data, setData] = useState<WorkoutSetProps[]>([]);
@@ -45,6 +58,14 @@ export default function History() {
         localStorage.setItem("workout-sets", JSON.stringify(editedData));
         finishEdit(id);
     };
+
+    // For the chart
+    const chartData = useMemo(() => 
+        [...data]
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .map((item) => ({ date: new Date(item.date).getTime(), reps: item.reps })),
+        [data]
+    );
 
     return (
         <section className="flex flex-col justify-center items-center gap-6">
@@ -92,9 +113,38 @@ export default function History() {
 
                     {/* graph */}
                     <h3 className="text-2xl font-semibold text-(color:--muted)">Graph</h3>
-                    <section>
-
-                    </section>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 24, left: 8 }}>
+                                <CartesianGrid stroke="var(--surface)" vertical={false} />
+                                <XAxis
+                                    dataKey="date"
+                                    type="number"
+                                    scale="time"
+                                    domain={["dataMin", "dataMax"]}
+                                    tickFormatter={(date) => shortDate.format(date)}
+                                    stroke="var(--muted)"
+                                    tickLine={false}
+                                    tickMargin={8}
+                                >
+                                    <Label value="Date" position="bottom" offset={8} fill="var(--muted)" />
+                                </XAxis>
+                                <YAxis 
+                                    stroke="var(--muted)" 
+                                    allowDecimals={false} 
+                                    tickLine={false}
+                                    tickMargin={8}
+                                >
+                                    <Label value="Reps" position="insideLeft" angle={-90} style={{ textAnchor: "middle" }} fill="var(--muted)" />
+                                </YAxis>
+                                <Tooltip
+                                    labelFormatter={(date) => formatDate(new Date(Number(date)))}
+                                    contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 12 }}
+                                />
+                                <Line type="monotone" dataKey="reps" stroke="var(--accent)" strokeWidth={2} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </>
             )}
         </section>
