@@ -6,6 +6,19 @@ export function changeTimeSet(newTime: number) {
     MAX_REPS = newTime;
 };
 
+export type WorkoutType = "sixcount" | "navyseals" | "none";
+
+// Workout types for the radio buttons
+export const TYPES: { value: WorkoutType, label: string }[] = [
+    { value: "none", label: "None" },
+    { value: "sixcount", label: "6-Count" },
+    { value: "navyseals", label: "Navy Seals" },
+];
+
+export const TYPE_LABELS = Object.fromEntries(
+  TYPES.map((t) => [t.value, t.label])
+) as Record<WorkoutType, string>;
+
 // Format date (e.g. "30/10/2026, 14:03")
 const dateFormatter = new Intl.DateTimeFormat("en-gb", {
   day: "2-digit",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { MAX_REPS, dateFromISO, dateToISO, formatDate } from "./utils";
+import { MAX_REPS, dateFromISO, dateToISO, formatDate, type WorkoutType, TYPES, TYPE_LABELS } from "./utils";
 import {
   CartesianGrid,
   Label,
@@ -9,16 +9,24 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts";
 
 interface WorkoutSetProps {
     id: string;
     date: string;
     reps: number;
+    type?: WorkoutType;
 }
 
 // For the chart
 const shortDate = new Intl.DateTimeFormat("en-gb", { day: "2-digit", month: "2-digit" });
+
+const TYPE_COLORS: Record<WorkoutType, string> = {
+    none: "var(--muted)",
+    sixcount: "var(--accent)",
+    navyseals: "var(--text)",
+};
 
 export default function History() {
     const [data, setData] = useState<WorkoutSetProps[]>([]);
@@ -49,9 +57,17 @@ export default function History() {
         })
     };
 
-    function handleSave(id: string, reps: number, date: string) {
+    function handleDelete(id: string) {
+        if (!window.confirm("Delete this workout?")) return;
+
+        const editedData = data.filter(item => item.id !== id);
+        setData(editedData);
+        localStorage.setItem("workout-sets", JSON.stringify(editedData));
+    }
+
+    function handleSave(id: string, reps: number, date: string, type: WorkoutType) {
         const editedData = data
-            .map(item => item.id === id ? { ...item, reps, date } : item)
+            .map(item => item.id === id ? { ...item, reps, date, type } : item)
             .sort((a, b) => b.date.localeCompare(a.date));
 
         setData(editedData);
@@ -63,9 +79,17 @@ export default function History() {
     const chartData = useMemo(() => 
         [...data]
             .sort((a, b) => a.date.localeCompare(b.date))
-            .map((item) => ({ date: new Date(item.date).getTime(), reps: item.reps })),
+            .map((item) => ({ 
+                date: new Date(item.date).getTime(), 
+                [item.type ?? "none"]: item.reps 
+            })),
         [data]
     );
+
+    // Multiple entries on the same day make only 1 tick
+    const dayTicks = [...new Map(chartData.map(
+        p => [shortDate.format(p.date), p.date]
+    )).values()];
 
     return (
         <section className="flex flex-col justify-center items-center gap-6">
@@ -82,10 +106,11 @@ export default function History() {
                 <>
                     {/* table */}
                     <h3 className="text-2xl font-semibold text-(color:--muted)">Table</h3>
-                    <section className="grid grid-cols-[5rem_15rem_10rem] items-center gap-2">
-                        <div className="col-span-3 grid grid-cols-subgrid text-sm font-semibold text-(color:--muted)">                    
+                    <section className="grid grid-cols-[5rem_15rem_8rem_12rem] items-center gap-2">
+                        <div className="col-span-4 grid grid-cols-subgrid text-sm font-semibold text-(color:--muted)">                    
                             <span className="text-center">Reps</span>
                             <span className="px-3">Date</span>
+                            <span className="text-center">Type</span>
                             <span />
                         </div>
                         {data.map(item => (
@@ -94,18 +119,27 @@ export default function History() {
                                     key={item.id} 
                                     item={item} 
                                     onCancel={() => finishEdit(item.id)}
-                                    onSave={(reps: number, date: string) => handleSave(item.id, reps, date)}
+                                    onSave={(reps: number, date: string, type: WorkoutType) => handleSave(item.id, reps, date, type)}
                                 />
                             :
-                                <div className="col-span-3 grid grid-cols-subgrid items-center" key={item.id}>
+                                <div className="col-span-4 grid grid-cols-subgrid items-center" key={item.id}>
                                     <span className="text-center">{item.reps}</span>
                                     <span className="px-3 text-(color:--muted)">{formatDate(new Date(item.date))}</span>
-                                    <button
-                                        className="btn btn-sm btn-muted justify-self-end"
-                                        onClick={() => startEdit(item.id)}
-                                    >
-                                        Edit
-                                    </button>
+                                    <span className="text-center text-(color:--muted)">{TYPE_LABELS[item.type ?? "none"]}</span>
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            className="btn btn-sm btn-muted"
+                                            onClick={() => startEdit(item.id)}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            className="btn btn-sm btn-muted text-red-400"
+                                            onClick={() => handleDelete(item.id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
                             )
                         ))}
@@ -113,7 +147,7 @@ export default function History() {
 
                     {/* graph */}
                     <h3 className="text-2xl font-semibold text-(color:--muted)">Graph</h3>
-                    <div className="h-64 w-full">
+                    <div className="h-72 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 24, left: 8 }}>
                                 <CartesianGrid stroke="var(--surface)" vertical={false} />
@@ -122,6 +156,7 @@ export default function History() {
                                     type="number"
                                     scale="time"
                                     domain={["dataMin", "dataMax"]}
+                                    ticks={dayTicks}
                                     tickFormatter={(date) => shortDate.format(date)}
                                     stroke="var(--muted)"
                                     tickLine={false}
@@ -141,7 +176,18 @@ export default function History() {
                                     labelFormatter={(date) => formatDate(new Date(Number(date)))}
                                     contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 12 }}
                                 />
-                                <Line type="monotone" dataKey="reps" stroke="var(--accent)" strokeWidth={2} />
+                                <Legend position="top" offset={6} />
+                                {TYPES.map(type => (
+                                    <Line 
+                                        key={type.value} 
+                                        type="monotone" 
+                                        dataKey={type.value} 
+                                        name={type.label}
+                                        stroke={TYPE_COLORS[type.value]} 
+                                        strokeWidth={2} 
+                                        connectNulls
+                                    />
+                                ))}
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -158,10 +204,11 @@ function EditRow({
 } : { 
     item: WorkoutSetProps; 
     onCancel: () => void;
-    onSave: (reps: number, date: string) => void;
+    onSave: (reps: number, date: string, type: WorkoutType) => void;
 }) {
     const [reps, setReps] = useState(item.reps);
     const [date, setDate] = useState(dateFromISO(item.date));
+    const [type, setType] = useState<WorkoutType>(item.type ?? "none");
 
     function handleRepsChange(e: React.ChangeEvent<HTMLInputElement>) {
         const raw = e.target.value;
@@ -169,20 +216,23 @@ function EditRow({
         setReps(Math.min(value, MAX_REPS));
     }
 
-
     function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
         setDate(e.target.value);
+    }
+
+    function handleTypeChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        setType(e.target.value as WorkoutType);
     }
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (reps < 1 || !date) return; 
-        onSave(reps, dateToISO(date));
+        onSave(reps, dateToISO(date), type);
     }
 
     return(
         <form 
-            className="col-span-3 grid grid-cols-subgrid items-center"  
+            className="col-span-4 grid grid-cols-subgrid items-center"  
             onSubmit={handleSubmit}
         >
             <input
@@ -202,6 +252,11 @@ function EditRow({
                 value={date} 
                 onChange={handleDateChange} 
             />
+            <select className="field" value={type} onChange={handleTypeChange}>
+                {TYPES.map((i) => (
+                    <option key={i.value} value={i.value}>{i.label}</option>
+                ))}
+            </select>
             <div className="flex justify-end gap-2">
                 <button
                     type="submit"

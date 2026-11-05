@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { MAX_REPS, formatDate } from "./utils";
+import { MAX_REPS, formatDate, type WorkoutType, TYPES } from "./utils";
+
 
 export default function Done() {
     const navigate = useNavigate();
@@ -8,6 +9,7 @@ export default function Done() {
 
     const [reps, setReps] = useState(initialReps);
     const [now] = useState(() => new Date());
+    const [type, setType] = useState<WorkoutType>("none");
 
     const [loadingSave, setLoadingSave] = useState(false); // For future backend
     const [errorSave, setErrorSave] = useState(false);
@@ -27,9 +29,12 @@ export default function Done() {
 
         try {
             setLoadingSave(true);
-            const entry = { id: crypto.randomUUID(), date: now.toISOString(), reps: reps }
+            const entry = { id: crypto.randomUUID(), date: now.toISOString(), reps: reps, type: type }
             const saved = JSON.parse(localStorage.getItem("workout-sets") ?? "[]");
-            localStorage.setItem("workout-sets", JSON.stringify([entry, ...saved]))
+            const sortedData = [entry, ...saved]
+                .sort((a, b) => b.date.localeCompare(a.date));
+
+            localStorage.setItem("workout-sets", JSON.stringify(sortedData));
         } catch {
             setErrorSave(true);
             setLoadingSave(false);
@@ -42,7 +47,6 @@ export default function Done() {
     function handleRetry() {
         navigate("/", { replace: true });
     }
-
 
     return (
         <section className="flex flex-col items-center gap-12 tabular-nums">
@@ -69,6 +73,31 @@ export default function Done() {
                     onChange={handleRepsChange}
                 />
             </form>
+            <div
+                role="radiogroup"
+                aria-labelledby="type-label"
+                className="flex flex-wrap items-center justify-center gap-2"
+            >
+                <span id="type-label" className="text-(color:--muted)">Type:</span>
+                <div className="flex gap-2">
+                    {TYPES.map(item => (
+                    <label
+                        key={item.value}
+                        className="btn btn-sm inline-flex cursor-pointer items-center bg-(color:--surface) text-(color:--muted) has-checked:bg-(color:--accent) has-checked:text-(color:--on-accent) hover:brightness-110"
+                    >
+                        <input
+                            type="radio"
+                            name="type"
+                            value={item.value}
+                            checked={type === item.value}
+                            onChange={() => setType(item.value)}
+                            className="sr-only"
+                        />
+                        {item.label}
+                    </label>
+                    ))}
+                </div>
+            </div>
 
             <p className="text-(color:--muted) text-center">
                 Save <span className="font-bold text-(color:--text)">{reps}</span> 
